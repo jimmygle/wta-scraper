@@ -6,7 +6,7 @@ use Illuminate\Console\Command;
 use Goutte\Client;
 use Symfony\Component\DomCrawler\Crawler;
 
-use App\Scrapers\{ReportListing, Report};
+use App\Scrapers\{ReportListing, Report, Hike};
 
 // use App\Models\{Report, Hike, Location, Region};
 
@@ -73,13 +73,13 @@ class Scrape extends Command
                 $listingPageReports->each(function ($rawReport) use ($requestCount, $dbSaveCount) {
                     
                     // Extract report data and get its DB model
-                    $report = new Report($this, $dbSaveCount);
+                    $report = new Report($this, $requestCount, $dbSaveCount);
                     $report->extract($rawReport);
                     $report->getModel();
 
                     // Get hike data, extract it, and get its DB model
                     $hike = new Hike($this, $requestCount, $dbSaveCount, $report);
-                    $hike->request();
+                    $hike->get();
                     $hike->extract();
                     $hike->getModel();
                 });
