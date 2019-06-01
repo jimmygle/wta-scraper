@@ -6,15 +6,14 @@ use Illuminate\Console\Command;
 use Goutte\Client;
 use Symfony\Component\DomCrawler\Crawler;
 
-use App\Report;
-use App\Hike;
-use App\Location;
-use App\Region;
+use App\Scrapers\{ReportListing, Report};
+
+// use App\Models\{Report, Hike, Location, Region};
 
 class Scrape extends Command
 {
 
-    const QUANTITY_PER_PAGE = 250;
+    const QUANTITY_PER_PAGE = 200;
 
     /**
      * The name and signature of the console command.
@@ -29,6 +28,8 @@ class Scrape extends Command
      * @var string
      */
     protected $description = 'Scrape!';
+
+    protected $totalRequestMade = 0;
 
     /**
      * Create a new command instance.
@@ -47,11 +48,84 @@ class Scrape extends Command
      */
     public function handle()
     {
+        // @todo Consolidate these into a single Stats class
+        $requestCount = new class {
+            protected $count = 0;
+            public function increment() : void { $this->count++; }
+            public function __toString() { return (string) $this->count; }
+        };
+        $dbSaveCount = new class {
+            protected $newReportCount = 0;
+            protected $newHikeCount = 0;
+            protected $newLocationCount = 0;
+            protected $newRegionCount = 0;
+            public function incrementReport() : void { $this->newReportCount++; }
+            public function incrementHike() : void { $this->newHikeCount++; }
+            public function incrementLocation() : void { $this->newLocationCount++; }
+            public function incrementRegion() : void { $this->newRegionCount++; }
+            public function __toString() { return "{$this->newReportCount} reports, {$this->newHikeCount} hikes, {$this->newLocationCount} locations, and {$this->newRegionCount} regions"; }
+        };
+
+        try {
+            $reportListing = new ReportListing($this, $requestCount);
+            $listingPageReports = $reportListing->first();
+            while ($listingPageReports !== false) {
+                $listingPageReports->each(function ($rawReport) use ($requestCount, $dbSaveCount) {
+                    
+                    // Extract report data and get its DB model
+                    $report = new Report($this, $dbSaveCount);
+                    $report->extract($rawReport);
+                    $report->getModel();
+
+                    // Get hike data, extract it, and get its DB model
+                    $hike = new Hike($this, $requestCount, $dbSaveCount, $report);
+                    $hike->request();
+                    $hike->extract();
+                    $hike->getModel();
+                });
+                dd();
+            }
+
+        } catch (\Exception $e) {
+            $this->error('ERROR: ' . $e->getMessage());
+            $this->error('FILE: ' . $e->getFile());
+            $this->error('LINE: ' . $e->getLine());
+        }
+
+
+
+
+
+        $this->info($requestCount);
+
+        dd();
+        $this->info('Getting first ' . number_format(static::QUANTITY_PER_PAGE) . ' trip reports from WTA.');
+
         $client = new Client();
-        $crawler = $client->request('GET', 'https://www.wta.org/@@search_tripreport_listing?b_size=100&');
+        $crawler = $client->request('GET', 'https://www.wta.org/@@search_tripreport_listing?b_size=' . static::QUANTITY_PER_PAGE);
+        $this->totalRequestMade++;
+
+        $totalSavedReports = (int) Report::count();
+        $totalReports = (int) $crawler->filter('#count-data')->text();
+        $totalNewReports = $totalReports - $totalSavedReports;
+        $totalPages = round($totalReports / static::QUANTITY_PER_PAGE);
+        $totalRequests = $totalPages + ($totalNewReports * 2);
+        $this->info(number_format($totalReports) . ' total reports on WTA.');
+        $this->info(number_format($totalPages) . ' total search result pages on WTA.');
+        $this->info(number_format($totalSavedReports) . ' total saved reports in the database.');
+        $this->info(number_format($totalNewReports) . ' total new reports on WTA.');
+        $this->info(number_format($totalRequests) . ' total HTTP requests to make.');
+        dd();
+
+        // TODO: keep count of total new reports and subtract as each request is made so all pages aren't scraped every time.
 
         $this->saveReports($crawler);
     }
+
+
+    // Parse all the data
+    // Insert all the data after the fact
+
 
     protected function saveReports(Crawler $crawler) : void 
     {
@@ -87,6 +161,7 @@ class Scrape extends Command
     {
         $client = new Client();
         $crawler = $client->request('GET', $reportUrl);
+        $this->totalRequestMade++;
 
         return (string) $crawler->filter('#trip-report-heading > h1 > a')->extract('href')[0];
     }
@@ -95,6 +170,7 @@ class Scrape extends Command
     {
         $client = new Client();
         $crawler = $client->request('GET', $hikeUrl);
+        $this->totalRequestMade++;
 
         if ($crawler->filter('#content > h1')->text(null) == 'Unpublished Hike') {
             $hikeName = 'Unpublished Hike';
