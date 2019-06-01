@@ -8,6 +8,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 use App\Report;
 use App\Hike;
+use App\Location;
 use App\Region;
 
 class Scrape extends Command
@@ -107,7 +108,6 @@ class Scrape extends Command
             ['wta_hike_id' => $wtaHikeId],
             [
                 'name' => $hikeName,
-                'location' => $crawler->filter('#hike-stats > div:nth-child(1) > div')->text(null),
                 'length' => $crawler->filter('#distance > span')->text(null),
                 'elevation_gain' => $crawler->filter('#hike-stats > div:nth-child(3) > div:nth-child(2) > span')->text(null),
                 'highest_point' => $crawler->filter('#hike-stats > div:nth-child(3) > div:nth-child(3) > span')->text(null),
@@ -117,10 +117,14 @@ class Scrape extends Command
         );
 
         if ($hikeName == 'Unpublished Hike') {
-            $hike->region_id = null;
+            $hike->location_id = null;
         } else {
             $region = Region::firstOrCreate(['name' => $crawler->filter('#hike-region > span')->text(null)]);
-            $hike->region_id = $region->id;
+
+            $location = explode(' -- ', $crawler->filter('#hike-stats > div:nth-child(1) > div')->text(null));
+            $locationName = array_pop($location);
+            $location = Location::firstOrCreate(['name' => $locationName], ['region_id' => $region->id]);
+            $hike->location_id = $location->id;
         }
 
         $hike->save();

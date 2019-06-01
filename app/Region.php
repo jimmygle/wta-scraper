@@ -10,6 +10,11 @@ class Region extends Model
 
     public function hikes()
     {
-        return $this->hasMany('App\Hike');
+        return $this->hasManyThrough('App\Location', 'App\Hike');
+    }
+
+    public function locations()
+    {
+        return $this->hasMany('App\Location');
     }
 }

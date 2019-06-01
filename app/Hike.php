@@ -12,4 +12,9 @@ class Hike extends Model
     {
         return $this->hasMany('App\Report');
     }
+
+    public function location()
+    {
+        return $this->belongsTo('App\Location');
+    }
 }
