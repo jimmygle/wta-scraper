@@ -48,7 +48,7 @@ class Scrape extends Command
      */
     public function handle()
     {
-        // @todo Consolidate these into a single Stats class
+        // @todo Consolidate these into a single Stats class and/or trait
         $requestCount = new class {
             protected $count = 0;
             public function increment() : void { $this->count++; }
@@ -79,8 +79,8 @@ class Scrape extends Command
 
                     // Get hike data, extract it, and get its DB model
                     $hike = new Hike($this, $requestCount, $dbSaveCount, $report);
-                    $hike->get();
                     $hike->extract();
+                    dd($hike->isPublished());
                     $hike->getModel();
                 });
                 dd();

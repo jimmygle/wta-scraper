@@ -191,6 +191,7 @@ class Report {
         if ($this->reportPageScraper->hikeUrlKey == null) {
             $this->reportPageScraper->extractHikeUrlKey();
             $this->hikeUrlKey = $this->reportPageScraper->hikeUrlKey;
+            $this->hikeUrl = $this->reportPageScraper->hikeUrl;
         }
     }
 
