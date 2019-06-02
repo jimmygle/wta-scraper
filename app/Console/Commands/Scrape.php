@@ -80,46 +80,51 @@ class Scrape extends Command
                     // Get hike data, extract it, and get its DB model
                     $hike = new Hike($this, $requestCount, $dbSaveCount, $report);
                     $hike->extract();
-                    dd($hike->isPublished());
-                    $hike->getModel();
+
+                    // Assign and save everything
+                    $hike->saveModel();
+                    $report->model->hike_id = $hike->model->id;
+                    $report->model->save();
                 });
                 dd();
             }
 
         } catch (\Exception $e) {
+            throw $e;
             $this->error('ERROR: ' . $e->getMessage());
             $this->error('FILE: ' . $e->getFile());
             $this->error('LINE: ' . $e->getLine());
+            $this->error("TRACE:\n" . $e->getTraceAsString());
         }
 
 
 
 
 
-        $this->info($requestCount);
+        // $this->info($requestCount);
 
-        dd();
-        $this->info('Getting first ' . number_format(static::QUANTITY_PER_PAGE) . ' trip reports from WTA.');
+        // dd();
+        // $this->info('Getting first ' . number_format(static::QUANTITY_PER_PAGE) . ' trip reports from WTA.');
 
-        $client = new Client();
-        $crawler = $client->request('GET', 'https://www.wta.org/@@search_tripreport_listing?b_size=' . static::QUANTITY_PER_PAGE);
-        $this->totalRequestMade++;
+        // $client = new Client();
+        // $crawler = $client->request('GET', 'https://www.wta.org/@@search_tripreport_listing?b_size=' . static::QUANTITY_PER_PAGE);
+        // $this->totalRequestMade++;
 
-        $totalSavedReports = (int) Report::count();
-        $totalReports = (int) $crawler->filter('#count-data')->text();
-        $totalNewReports = $totalReports - $totalSavedReports;
-        $totalPages = round($totalReports / static::QUANTITY_PER_PAGE);
-        $totalRequests = $totalPages + ($totalNewReports * 2);
-        $this->info(number_format($totalReports) . ' total reports on WTA.');
-        $this->info(number_format($totalPages) . ' total search result pages on WTA.');
-        $this->info(number_format($totalSavedReports) . ' total saved reports in the database.');
-        $this->info(number_format($totalNewReports) . ' total new reports on WTA.');
-        $this->info(number_format($totalRequests) . ' total HTTP requests to make.');
-        dd();
+        // $totalSavedReports = (int) Report::count();
+        // $totalReports = (int) $crawler->filter('#count-data')->text();
+        // $totalNewReports = $totalReports - $totalSavedReports;
+        // $totalPages = round($totalReports / static::QUANTITY_PER_PAGE);
+        // $totalRequests = $totalPages + ($totalNewReports * 2);
+        // $this->info(number_format($totalReports) . ' total reports on WTA.');
+        // $this->info(number_format($totalPages) . ' total search result pages on WTA.');
+        // $this->info(number_format($totalSavedReports) . ' total saved reports in the database.');
+        // $this->info(number_format($totalNewReports) . ' total new reports on WTA.');
+        // $this->info(number_format($totalRequests) . ' total HTTP requests to make.');
+        // dd();
 
-        // TODO: keep count of total new reports and subtract as each request is made so all pages aren't scraped every time.
+        // // TODO: keep count of total new reports and subtract as each request is made so all pages aren't scraped every time.
 
-        $this->saveReports($crawler);
+        // $this->saveReports($crawler);
     }
 
 
@@ -127,84 +132,84 @@ class Scrape extends Command
     // Insert all the data after the fact
 
 
-    protected function saveReports(Crawler $crawler) : void 
-    {
-        $crawler->filter('div.item > div.item-row')->each(function ($node) {
-            $reportUrl = $node->filter('div.item-header > a')->extract('href')[0];
-            $wtaReportId = explode('.', explode('trip_report.', $reportUrl)[1])[1];
+    // protected function saveReports(Crawler $crawler) : void 
+    // {
+    //     $crawler->filter('div.item > div.item-row')->each(function ($node) {
+    //         $reportUrl = $node->filter('div.item-header > a')->extract('href')[0];
+    //         $wtaReportId = explode('.', explode('trip_report.', $reportUrl)[1])[1];
 
-            $report = Report::firstOrNew(
-                ['wta_report_id' => $wtaReportId],
-                [
-                    'report' => $node->filter('div.report-text > div > div.show-with-full')->html(),
-                    'date' => explode('.', explode('trip_report.', $reportUrl)[1])[0]
-                ]
-            );
+    //         $report = Report::firstOrNew(
+    //             ['wta_report_id' => $wtaReportId],
+    //             [
+    //                 'report' => $node->filter('div.report-text > div > div.show-with-full')->html(),
+    //                 'date' => explode('.', explode('trip_report.', $reportUrl)[1])[0]
+    //             ]
+    //         );
 
-            if ($report->exists) {
-                //dump($report);
-                $this->info("Skipped report {$report->wta_report_id}");
-                return;
-            }
+    //         if ($report->exists) {
+    //             //dump($report);
+    //             $this->info("Skipped report {$report->wta_report_id}");
+    //             return;
+    //         }
 
-            $hikeUrl = $this->getHikeUrlFromReportPage($reportUrl);
-            $hikeId = $this->saveHike($hikeUrl);
+    //         $hikeUrl = $this->getHikeUrlFromReportPage($reportUrl);
+    //         $hikeId = $this->saveHike($hikeUrl);
 
-            $report->hike_id = $hikeId;
-            $report->save();
-            $this->info("Saved report {$report->wta_report_id}");
-            unset($report);
-        });
-    }
+    //         $report->hike_id = $hikeId;
+    //         $report->save();
+    //         $this->info("Saved report {$report->wta_report_id}");
+    //         unset($report);
+    //     });
+    // }
 
-    protected function getHikeUrlFromReportPage(string $reportUrl) : string
-    {
-        $client = new Client();
-        $crawler = $client->request('GET', $reportUrl);
-        $this->totalRequestMade++;
+    // protected function getHikeUrlFromReportPage(string $reportUrl) : string
+    // {
+    //     $client = new Client();
+    //     $crawler = $client->request('GET', $reportUrl);
+    //     $this->totalRequestMade++;
 
-        return (string) $crawler->filter('#trip-report-heading > h1 > a')->extract('href')[0];
-    }
+    //     return (string) $crawler->filter('#trip-report-heading > h1 > a')->extract('href')[0];
+    // }
 
-    protected function saveHike(string $hikeUrl) : int
-    {
-        $client = new Client();
-        $crawler = $client->request('GET', $hikeUrl);
-        $this->totalRequestMade++;
+    // protected function saveHike(string $hikeUrl) : int
+    // {
+    //     $client = new Client();
+    //     $crawler = $client->request('GET', $hikeUrl);
+    //     $this->totalRequestMade++;
 
-        if ($crawler->filter('#content > h1')->text(null) == 'Unpublished Hike') {
-            $hikeName = 'Unpublished Hike';
-        } else {
-            $hikeName = $crawler->filter('#hike-top > h1')->text();
-        }
+    //     if ($crawler->filter('#content > h1')->text(null) == 'Unpublished Hike') {
+    //         $hikeName = 'Unpublished Hike';
+    //     } else {
+    //         $hikeName = $crawler->filter('#hike-top > h1')->text();
+    //     }
 
-        $wtaHikeId = explode('/hikes/', $hikeUrl)[1];
+    //     $wtaHikeId = explode('/hikes/', $hikeUrl)[1];
 
-        $hike = Hike::firstOrNew(
-            ['wta_hike_id' => $wtaHikeId],
-            [
-                'name' => $hikeName,
-                'length' => $crawler->filter('#distance > span')->text(null),
-                'elevation_gain' => $crawler->filter('#hike-stats > div:nth-child(3) > div:nth-child(2) > span')->text(null),
-                'highest_point' => $crawler->filter('#hike-stats > div:nth-child(3) > div:nth-child(3) > span')->text(null),
-                'rating' => $crawler->filter('#rating-stars-view-trail-rating > div > div.star-rating > div')->text(null),
-                'description' => trim($crawler->filter('#hike-body-text')->html(null))
-            ]
-        );
+    //     $hike = Hike::firstOrNew(
+    //         ['wta_hike_id' => $wtaHikeId],
+    //         [
+    //             'name' => $hikeName,
+    //             'length' => $crawler->filter('#distance > span')->text(null),
+    //             'elevation_gain' => $crawler->filter('#hike-stats > div:nth-child(3) > div:nth-child(2) > span')->text(null),
+    //             'highest_point' => $crawler->filter('#hike-stats > div:nth-child(3) > div:nth-child(3) > span')->text(null),
+    //             'rating' => $crawler->filter('#rating-stars-view-trail-rating > div > div.star-rating > div')->text(null),
+    //             'description' => trim($crawler->filter('#hike-body-text')->html(null))
+    //         ]
+    //     );
 
-        if ($hikeName == 'Unpublished Hike') {
-            $hike->location_id = null;
-        } else {
-            $region = Region::firstOrCreate(['name' => $crawler->filter('#hike-region > span')->text(null)]);
+    //     if ($hikeName == 'Unpublished Hike') {
+    //         $hike->location_id = null;
+    //     } else {
+    //         $region = Region::firstOrCreate(['name' => $crawler->filter('#hike-region > span')->text(null)]);
 
-            $location = explode(' -- ', $crawler->filter('#hike-stats > div:nth-child(1) > div')->text(null));
-            $locationName = array_pop($location);
-            $location = Location::firstOrCreate(['name' => $locationName], ['region_id' => $region->id]);
-            $hike->location_id = $location->id;
-        }
+    //         $location = explode(' -- ', $crawler->filter('#hike-stats > div:nth-child(1) > div')->text(null));
+    //         $locationName = array_pop($location);
+    //         $location = Location::firstOrCreate(['name' => $locationName], ['region_id' => $region->id]);
+    //         $hike->location_id = $location->id;
+    //     }
 
-        $hike->save();
+    //     $hike->save();
 
-        return $hike->id;
-    }
+    //     return $hike->id;
+    // }
 }

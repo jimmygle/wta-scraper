@@ -29,6 +29,7 @@ class Report {
     public $date;
     public $content;
     public $hikeName;
+    public $hikeUrl;
     public $hikeUrlKey;
     public $model;
     protected $reportPageScraper;
@@ -190,9 +191,11 @@ class Report {
 
         if ($this->reportPageScraper->hikeUrlKey == null) {
             $this->reportPageScraper->extractHikeUrlKey();
+        }
+
             $this->hikeUrlKey = $this->reportPageScraper->hikeUrlKey;
             $this->hikeUrl = $this->reportPageScraper->hikeUrl;
-        }
+
     }
 
 }

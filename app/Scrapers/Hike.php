@@ -6,6 +6,7 @@ use Goutte\Client;
 use Symfony\Component\DomCrawler\Crawler;
 
 use App\Scrapers\Report;
+use App\Models\{Hike as HikeModel, Region as RegionModel, Location as LocationModel};
 
 class Hike {
     
@@ -16,13 +17,19 @@ class Hike {
     protected $client;
     protected $rawHike;
 
+    public $urlKey;
     public $name;
+    public $locationId;
     public $length;
     public $elevationGain;
     public $highestPoint;
     public $rating;
     public $description;
     protected $isPublished = true;
+    public $model;
+    protected $modelExists = false;
+    public $regionModel;
+    public $locationModel;
 
     /**
      * Constructor.
@@ -43,14 +50,22 @@ class Hike {
      */
     public function extract() : void
     {
-        $this->rawHike = $this->request();
+        $this->urlKey = $this->reportScraper->hikeUrlKey;
+        $this->getExistingModel();
 
-        $this->extractName();
-        $this->extractLength();
-        $this->extractElevationGain();
-        $this->extractHighestPoint();
-        $this->extractRating();
-        $this->extractDescription();
+        if ($this->model instanceof HikeModel === false) {
+            $this->rawHike = $this->request();
+
+            $this->extractName();
+            $this->extractLength();
+            $this->extractElevationGain();
+            $this->extractHighestPoint();
+            $this->extractRating();
+            $this->extractDescription();
+            $this->extractRegion();
+            $this->extractLocation();
+            $this->getModel();
+        }
     }
 
     /**
@@ -61,7 +76,8 @@ class Hike {
     protected function request() : object
     {
         try {
-            $crawler = $this->client->request('GET', $this->reportScraper->hikeUrl);
+            $hikeUrl = str_replace('{url_key}', $this->urlKey, config('scrapers.hike.url'));
+            $crawler = $this->client->request('GET', $hikeUrl);
             $this->requestCount->increment();
         } catch (\Exception $e) {
             throw $e;
@@ -145,6 +161,79 @@ class Hike {
     public function isPublished() : bool 
     {
         return $this->isPublished;
+    }
+
+    /**
+     * Attemps to get existing hike model.
+     *
+     * @return void
+     */
+    public function getExistingModel() : void 
+    {
+        $this->model = HikeModel::where('url_key', '=', $this->urlKey)->first();
+        if($this->model !== null) 
+        {
+            $this->modelExists = true;
+            $this->console->line("Hike {$this->urlKey} exists in DB. It will be skipped.");
+        }
+    }
+
+    /**
+     * Finds or creates a new hike in the DB.
+     *
+     * @return void
+     */
+    public function getModel() : void
+    {
+        $this->model = HikeModel::create(
+            [
+                'url_key' => $this->urlKey,
+                'location_id' => $this->locationId,
+                'name' => $this->name,
+                'length' => $this->length,
+                'elevation_gain' => $this->elevationGain,
+                'highest_point' => $this->highestPoint,
+                'rating' => $this->rating,
+                'description' => $this->description
+            ]
+        );
+    }
+
+    /**
+     * Saves the model if it didn't exist.
+     *
+     * @return void
+     */
+    public function saveModel() : void 
+    {
+        if ($this->modelExists === false) {
+            $this->model->save();
+        }
+    }
+
+    protected function extractRegion() : void 
+    {
+        if ($this->isPublished === false) {
+            return;
+        }
+
+        $region = $this->rawHike->filter('#hike-region > span')->text(null);
+        $this->regionModel = RegionModel::firstOrCreate(['name' => $region]);
+        $this->regionModel->save();
+        
+    }
+
+    protected function extractLocation() : void 
+    {
+        if ($this->isPublished === false) {
+            return;
+        }
+
+        $location = explode(' -- ', $this->rawHike->filter('#hike-stats > div:nth-child(1) > div')->text(null));
+        $locationName = array_pop($location);
+        $this->locationModel = LocationModel::firstOrCreate(['name' => $locationName], ['region_id' => $this->regionModel->id]);
+        $this->locationId = $this->locationModel->id;
+        $this->locationModel->save();
     }
 
 }

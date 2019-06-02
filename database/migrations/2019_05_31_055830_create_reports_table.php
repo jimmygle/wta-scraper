@@ -17,7 +17,7 @@ class CreateReportsTable extends Migration
             $table->bigIncrements('id');
             $table->string('hike_id');
             $table->string('wta_id');
-            $table->longText('content');
+            $table->longText('content')->nullable();
             $table->date('date');
             $table->timestamps();
         });

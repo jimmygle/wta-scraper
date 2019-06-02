@@ -16,8 +16,8 @@ class CreateHikesTable extends Migration
         Schema::create('hikes', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->integer('location_id')->nullable();
-            $table->string('name');
-            $table->string('wta_hike_id');
+            $table->string('name')->nullable();
+            $table->string('url_key');
             $table->string('length')->nullable();
             $table->smallInteger('elevation_gain')->nullable();
             $table->smallInteger('highest_point')->nullable();
