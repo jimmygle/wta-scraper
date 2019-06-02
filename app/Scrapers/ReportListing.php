@@ -12,6 +12,7 @@ class ReportListing {
     protected $quantityPerPage;
     protected $listingUrl;
     protected $client;
+    protected $start = 0;
 
     protected $wtaReportCount;
     protected $reportsFetchedCount = 0;
@@ -38,15 +39,23 @@ class ReportListing {
     public function first() : object
     {
         $this->console->info('Fetching first report listings page.');
-        $firstListingPage = $this->request(0, $this->quantityPerPage);
+        $firstListingPage = $this->request($this->start, $this->quantityPerPage);
         $this->extractWtaReportCount($firstListingPage);
         $this->reportsFetchedCount += $this->quantityPerPage;
         return $firstListingPage->filter('div.item > div.item-row');
     }
 
-    public function next() : void
+    public function next() :? object
     {
-
+        $this->start += $this->quantityPerPage;
+        $nextListingPage = $this->request($this->start, $this->quantityPerPage);
+        $this->reportsFetchedCount += $this->quantityPerPage;
+        $listingPage = $nextListingPage->filter('div.item > div.item-row');
+        if($listingPage->count() < 1) {
+            return null;
+        } else {
+            return $listingPage;
+        }
     }
 
     /**

@@ -13,8 +13,6 @@ use App\Scrapers\{ReportListing, Report, Hike};
 class Scrape extends Command
 {
 
-    const QUANTITY_PER_PAGE = 200;
-
     /**
      * The name and signature of the console command.
      *
@@ -28,8 +26,6 @@ class Scrape extends Command
      * @var string
      */
     protected $description = 'Scrape!';
-
-    protected $totalRequestMade = 0;
 
     /**
      * Create a new command instance.
@@ -69,7 +65,7 @@ class Scrape extends Command
         try {
             $reportListing = new ReportListing($this, $requestCount);
             $listingPageReports = $reportListing->first();
-            while ($listingPageReports !== false) {
+            while ($listingPageReports !== null) {
                 $listingPageReports->each(function ($rawReport) use ($requestCount, $dbSaveCount) {
                     
                     // Extract report data and get its DB model
@@ -86,7 +82,8 @@ class Scrape extends Command
                     $report->model->hike_id = $hike->model->id;
                     $report->model->save();
                 });
-                dd();
+                dump('next page... processed ' . $requestCount . ' so far');
+                $listingPageReports = $reportListing->next();
             }
 
         } catch (\Exception $e) {
