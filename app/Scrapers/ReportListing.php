@@ -14,7 +14,7 @@ class ReportListing {
     protected $client;
     protected $start = 0;
 
-    protected $wtaReportCount;
+    public $wtaReportCount;
     protected $reportsFetchedCount = 0;
 
     /**

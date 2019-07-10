@@ -39,8 +39,13 @@ class ReportPage {
     public function extractHikeUrlKey() : void
     {
         $reportPage = $this->request();
-        $this->hikeUrl = $reportPage->filter('#trip-report-heading > h1 > a')->extract('href')[0];
-        $this->hikeUrlKey = explode('/hikes/', $this->hikeUrl)[1];
+        try {
+            $this->hikeUrl = $reportPage->filter('#trip-report-heading > h1 > a')->extract('href')[0];
+            $this->hikeUrlKey = explode('/hikes/', $this->hikeUrl)[1];
+        } catch (\Exception $e) {
+            $this->hikeUrl = null;
+            $this->hikeUrlKey = null;
+        }
     }
 
     /**
