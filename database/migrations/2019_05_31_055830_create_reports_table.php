@@ -15,7 +15,7 @@ class CreateReportsTable extends Migration
     {
         Schema::create('reports', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->string('hike_id');
+            $table->string('hike_id')->nullable();
             $table->string('wta_id');
             $table->longText('content')->nullable();
             $table->date('date');
