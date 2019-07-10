@@ -62,16 +62,36 @@ class Scrape extends Command
             public function __toString() { return "{$this->newReportCount} reports, {$this->newHikeCount} hikes, {$this->newLocationCount} locations, and {$this->newRegionCount} regions"; }
         };
 
+        $this->line('<bg=green>' . str_repeat(' ', 100) . '</>');
+        $this->line('<bg=green>  </><fg=black;bg=green;options=bold,underscore>' . str_pad('WTA Scraper', 92) . 'v0.1</><bg=green>  </>');
+        $this->line('<bg=green>' . str_repeat(' ', 100) . '</>');
+
+        $output = $this->getOutput();
+
+        // $pageProgressSection = $output->section();
+
         try {
             $reportListing = new ReportListing($this, $requestCount);
             $listingPageReports = $reportListing->first();
+
+            // $progressBar = $this->output->createProgressBar($reportListing->wtaReportCount, $pageProgressSection);
+            // $progressBar->setFormat("<fg=black;bg=green>  Pages: [%current%/%max%] [%bar%] [%percent:3s%%]                                      \n    > %message%  </>\n");
+            // $progressBar->setMessage('Extracting first page...');
+            // $progressBar->start();
+            $progressBar = null;
+
             while ($listingPageReports !== null) {
-                $listingPageReports->each(function ($rawReport) use ($requestCount, $dbSaveCount) {
-                    
+                $listingPageReports->each(function ($rawReport) use ($requestCount, $dbSaveCount, $progressBar) {
+
                     // Extract report data and get its DB model
                     $report = new Report($this, $requestCount, $dbSaveCount);
                     $report->extract($rawReport);
                     $report->getModel();
+
+                    // if ($report->hikeUrlKey === null) {
+                    //     $report->model->save();
+                    //     return;
+                    // }
 
                     // Get hike data, extract it, and get its DB model
                     $hike = new Hike($this, $requestCount, $dbSaveCount, $report);
@@ -81,10 +101,18 @@ class Scrape extends Command
                     $hike->saveModel();
                     $report->model->hike_id = $hike->model->id;
                     $report->model->save();
+
+                    $this->info("Saved {$hike->name} report {$report->wtaId}");
                 });
-                dump('next page... processed ' . $requestCount . ' so far');
-                $listingPageReports = $reportListing->next();
+
+                // $progressBar->setMessage(date('Y-m-d H:i:s') . ' - Extracting next page...' . str_repeat(' ', 49));
+                // $progressBar->advance();
+
+                // $this->info('Getting next page... Processed ' . $requestCount . ' so far.');
+
+                // $listingPageReports = $reportListing->next();
             }
+            $progressBar->finish();
 
         } catch (\Exception $e) {
             throw $e;
